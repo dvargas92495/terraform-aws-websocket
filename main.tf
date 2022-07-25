@@ -71,18 +71,18 @@ data "aws_iam_policy_document" "lambda_execution_policy" {
       "sts:AssumeRole"
     ]
     resources = [
-      "arn:aws:iam::*:role/${var.name}-lambda-execution"
+      "arn:aws:iam::*:role/${var.name}-lambda-ws-execution"
     ]
   }
 }
 
 resource "aws_iam_policy" "lambda_execution_policy" {
-  name = "${var.name}-lambda-execution"
+  name = "${var.name}-lambda-ws-execution"
   policy = data.aws_iam_policy_document.lambda_execution_policy.json
 }
 
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.name}-lambda-execution"
+  name = "${var.name}-lambda-ws-execution"
   assume_role_policy = data.aws_iam_policy_document.assume_lambda_policy.json
   tags = {
     Application = var.name
