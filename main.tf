@@ -126,7 +126,7 @@ data "archive_file" "dummy" {
 resource "aws_lambda_function" "websocket_lambda" {
   for_each      = toset(var.paths)
   filename      = "dummy.zip"
-  function_name = "${var.name}_${each.value}"
+  function_name = "${var.name}_ws_${each.value}"
   role          = aws_iam_role.lambda_role.arn
   handler       = "${each.value}.handler"
   runtime       = "nodejs16.x"
@@ -157,7 +157,7 @@ resource "aws_lambda_permission" "websocket_permission" {
 resource "aws_apigatewayv2_route" "websocket_route" {
   for_each  = toset(var.paths)
   api_id    = aws_apigatewayv2_api.ws.id
-  route_key = replace(each.value, "on", "$")
+  route_key = replace(each.value, "/^on/", "$")
   target = "integrations/${aws_apigatewayv2_integration.websocket_integration[each.value].id}"
 }
 
