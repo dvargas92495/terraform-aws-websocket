@@ -22,6 +22,11 @@ variable "repo" {
   default = ""
 }
 
+variable "paths" {
+  type = string
+  default = []
+}
+
 locals {
   repo = length(var.repo) > 0 ? var.repo : replace(var.name, "-", ".")
 }
@@ -118,104 +123,42 @@ data "archive_file" "dummy" {
   }
 }
 
-resource "aws_lambda_function" "onconnect" {
+resource "aws_lambda_function" "websocket_lambda" {
+  for_each      = toset(var.paths)
   filename      = "dummy.zip"
-  function_name = "${var.name}_onconnect"
+  function_name = "${var.name}_${each.value}"
   role          = aws_iam_role.lambda_role.arn
-  handler       = "onconnect.handler"
-  runtime       = "nodejs16.x"
-  timeout       = 10
-}
-
-resource "aws_apigatewayv2_integration" "onconnect" {
-  api_id           = aws_apigatewayv2_api.ws.id
-  integration_type = "AWS_PROXY"
-
-  connection_type           = "INTERNET"
-  content_handling_strategy = "CONVERT_TO_TEXT"
-  integration_method        = "POST"
-  integration_uri           = aws_lambda_function.onconnect.invoke_arn
-  passthrough_behavior      = "WHEN_NO_MATCH"
-}
-
-resource "aws_lambda_permission" "onconnect" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.onconnect.function_name
-  principal     = "apigateway.amazonaws.com"
-}
-
-resource "aws_apigatewayv2_route" "onconnect" {
-  api_id    = aws_apigatewayv2_api.ws.id
-  route_key = "$connect"
-  target = "integrations/${aws_apigatewayv2_integration.onconnect.id}"
-}
-
-resource "aws_lambda_function" "ondisconnect" {
-  filename      = "dummy.zip"
-  function_name = "${var.name}_ondisconnect"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "ondisconnect.handler"
-  runtime       = "nodejs16.x"
-  timeout       = 10
-}
-
-resource "aws_apigatewayv2_integration" "ondisconnect" {
-  api_id           = aws_apigatewayv2_api.ws.id
-  integration_type = "AWS_PROXY"
-
-  connection_type           = "INTERNET"
-  content_handling_strategy = "CONVERT_TO_TEXT"
-  integration_method        = "POST"
-  integration_uri           = aws_lambda_function.ondisconnect.invoke_arn
-  passthrough_behavior      = "WHEN_NO_MATCH"
-}
-
-resource "aws_lambda_permission" "ondisconnect" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.ondisconnect.function_name
-  principal     = "apigateway.amazonaws.com"
-}
-
-resource "aws_apigatewayv2_route" "ondisconnect" {
-  api_id    = aws_apigatewayv2_api.ws.id
-  route_key = "$disconnect"
-  target = "integrations/${aws_apigatewayv2_integration.ondisconnect.id}"
-}
-
-resource "aws_lambda_function" "sendmessage" {
-  filename      = "dummy.zip"
-  function_name = "${var.name}_sendmessage"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "sendmessage.handler"
+  handler       = "${each.value}.handler"
   runtime       = "nodejs16.x"
   timeout       = 10
   memory_size   = 5120
 }
 
-resource "aws_apigatewayv2_integration" "sendmessage" {
+resource "aws_apigatewayv2_integration" "websocket_integration" {
+  for_each         = toset(var.paths)
   api_id           = aws_apigatewayv2_api.ws.id
   integration_type = "AWS_PROXY"
 
   connection_type           = "INTERNET"
   content_handling_strategy = "CONVERT_TO_TEXT"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.sendmessage.invoke_arn
+  integration_uri           = aws_lambda_function.websocket_lambda[each.value].invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
 }
 
-resource "aws_lambda_permission" "sendmessage" {
+resource "aws_lambda_permission" "websocket_permission" {
+  for_each      = toset(var.paths)
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.sendmessage.function_name
+  function_name = aws_lambda_function.websocket_lambda[each.value].function_name
   principal     = "apigateway.amazonaws.com"
 }
 
-resource "aws_apigatewayv2_route" "sendmessage" {
+resource "aws_apigatewayv2_route" "websocket_route" {
+  for_each  = toset(var.paths)
   api_id    = aws_apigatewayv2_api.ws.id
-  route_key = "sendmessage"
-  target = "integrations/${aws_apigatewayv2_integration.sendmessage.id}"
+  route_key = replace(each.value, "on", "$")
+  target = "integrations/${aws_apigatewayv2_integration.websocket_integration[each.value].id}"
 }
 
 resource "aws_apigatewayv2_deployment" "ws" {
@@ -223,14 +166,7 @@ resource "aws_apigatewayv2_deployment" "ws" {
   description = "Latest Deployment"
 
   triggers = {
-    redeployment = sha1(join(",", [
-      jsonencode(aws_apigatewayv2_integration.onconnect),
-      jsonencode(aws_apigatewayv2_route.onconnect),
-      jsonencode(aws_apigatewayv2_integration.ondisconnect),
-      jsonencode(aws_apigatewayv2_route.ondisconnect),
-      jsonencode(aws_apigatewayv2_integration.sendmessage),
-      jsonencode(aws_apigatewayv2_route.sendmessage),
-    ]))
+    redeployment = sha1(join(",", var.paths))
   }
 
   lifecycle {
