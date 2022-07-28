@@ -23,7 +23,7 @@ variable "repo" {
 }
 
 variable "paths" {
-  type = string
+  type    = list
   default = []
 }
 
