@@ -1,6 +1,6 @@
 {
   "name": "@dvargas92495/aws-websocket",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Prebuilt AWS Websocket Module for Terraform CDK (cdktf)",
   "main": "lib/aws-websocket.js",
   "types": "lib/aws-websocket.d.ts",
