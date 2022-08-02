@@ -169,6 +169,10 @@ resource "aws_apigatewayv2_deployment" "ws" {
     redeployment = sha1(join(",", var.paths))
   }
 
+  depends_on  = [
+    aws_apigatewayv2_route.websocket_route
+  ]
+
   lifecycle {
     create_before_destroy = true
   }
@@ -183,6 +187,62 @@ resource "aws_apigatewayv2_stage" "ws" {
     throttling_burst_limit = 5000
     throttling_rate_limit = 10000
   }
+}
+
+data "aws_route53_zone" "zone" {
+  name = join(".", reverse(slice(reverse(split(".", local.repo)), 0, 2)))
+}
+
+resource "aws_acm_certificate" "ws" {
+  domain_name       = "ws.${local.repo}"
+  validation_method = "DNS"
+
+  tags = local.tags
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "ws_cert" {
+  name    = tolist(aws_acm_certificate.ws.domain_validation_options)[0].resource_record_name
+  type    = tolist(aws_acm_certificate.ws.domain_validation_options)[0].resource_record_type
+  zone_id = data.aws_route53_zone.zone.id
+  records = [tolist(aws_acm_certificate.ws.domain_validation_options)[0].resource_record_value]
+  ttl     = 60
+}
+
+resource "aws_acm_certificate_validation" "ws" {
+  certificate_arn         = aws_acm_certificate.ws.arn
+  validation_record_fqdns = [aws_route53_record.ws_cert.fqdn]
+}
+
+resource "aws_apigatewayv2_domain_name" "ws" {
+  domain_name     = "ws.${local.repo}"
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate_validation.ws.certificate_arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+}
+
+resource "aws_route53_record" "ws" {
+  name    = aws_apigatewayv2_domain_name.ws.id
+  type    = "A"
+  zone_id = data.aws_route53_zone.zone.id
+
+  alias {
+    evaluate_target_health = true
+    name                   = aws_apigatewayv2_domain_name.ws.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.ws.domain_name_configuration[0].hosted_zone_id
+  }
+}
+
+resource "aws_apigatewayv2_api_mapping" "api" {
+  count       = length(var.paths) > 0 ? 1 : 0
+  api_id      = aws_apigatewayv2_api.ws.id
+  stage       = aws_apigatewayv2_stage.ws.id
+  domain_name = aws_apigatewayv2_domain_name.ws.id
 }
 
 resource "github_actions_secret" "web_socket_url" {
