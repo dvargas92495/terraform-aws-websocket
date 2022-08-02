@@ -1,0 +1,36 @@
+{
+  "name": "@dvargas92495/aws-websocket",
+  "version": "0.1.0",
+  "description": "Prebuilt AWS Websocket Module for Terraform CDK (cdktf)",
+  "main": "lib/aws-websocket.js",
+  "types": "lib/aws-websocket.d.ts",
+  "scripts": {
+    "prebuild": "cdktf get",
+    "build": "tsc",
+    "test": "jest --passWithNoTests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dvargas92495/terraform-aws-websocket.git"
+  },
+  "keywords": [
+    "cdk",
+    "cdktf",
+    "aws",
+    "module",
+    "terraform"
+  ],
+  "author": "dvargas92495 <dvargas92495@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dvargas92495/terraform-aws-websocket/issues"
+  },
+  "homepage": "https://github.com/dvargas92495/terraform-aws-websocket#readme",
+  "devDependencies": {
+    "cdktf-cli": "^0.12.0",
+    "typescript": "^4.7.4"
+  },
+  "files": [
+    "/lib"
+  ]
+}
