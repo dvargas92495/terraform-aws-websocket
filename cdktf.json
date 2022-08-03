@@ -6,7 +6,7 @@
     {
       "name": "aws-websocket",
       "source": "dvargas92495/websocket/aws",
-      "version": "1.2.0"
+      "version": "1.2.1"
     }
   ],
   "codeMakerOutput": "src",
