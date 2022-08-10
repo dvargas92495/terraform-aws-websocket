@@ -128,7 +128,7 @@ resource "aws_lambda_function" "websocket_lambda" {
   filename      = "dummy.zip"
   function_name = "${var.name}_ws_${each.value}"
   role          = aws_iam_role.lambda_role.arn
-  handler       = "${each.value}.handler"
+  handler       = "ws_${each.value}.handler"
   runtime       = "nodejs16.x"
   timeout       = 10
   memory_size   = 5120
